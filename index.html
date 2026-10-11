@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WB Predictor</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#07080f; --surface:#0d0f1a; --border:#1c1f32; --border2:#262a42;
+  --accent:#34d399; --accent-dim:rgba(52,211,153,0.12); --accent-glow:rgba(52,211,153,0.06);
+  --orange:#fb923c; --blue:#60a5fa; --purple:#a78bfa; --red:#f87171;
+  --text:#e2e8f0; --text2:#94a3b8; --text3:#475569;
+  --mono:'IBM Plex Mono',monospace; --sans:'Inter',sans-serif; --serif:'Fraunces',serif;
+  --green:#34d399; --muted:#475569; --muted2:#64748b;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:var(--sans); background:var(--bg); color:var(--text); min-height:100vh; overflow-x:hidden; -webkit-font-smoothing:antialiased; }
+.topbar { display:flex; align-items:center; gap:20px; padding:0 28px; height:52px; border-bottom:1px solid var(--border); background:rgba(7,8,15,0.92); backdrop-filter:blur(12px); position:sticky; top:0; z-index:100; flex-wrap:wrap; }
+.logo-mark { font-family:var(--mono); font-size:10px; letter-spacing:0.3em; color:var(--accent); font-weight:500; }
+.logo-sub { font-family:var(--serif); font-style:italic; font-size:13px; color:var(--text3); font-weight:300; }
+.version-tag { font-family:var(--mono); font-size:9px; letter-spacing:0.12em; color:var(--text3); border:1px solid var(--border2); padding:3px 9px; border-radius:3px; }
+.main-layout { display:grid; grid-template-columns:360px 1fr; min-height:calc(100vh - 52px); }
+.sidebar { border-right:1px solid var(--border); overflow-y:auto; display:flex; flex-direction:column; background:var(--surface); scrollbar-width:thin; scrollbar-color:var(--border2) transparent; }
+.section { padding:20px 24px; border-bottom:1px solid var(--border); }
+.section:last-child { border-bottom:none; }
+.section-label { font-family:var(--mono); font-size:8.5px; letter-spacing:0.22em; color:var(--text3); text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+.section-label .num { color:var(--accent); font-size:8px; }
+label { display:block; font-size:10px; font-weight:500; color:var(--text2); margin-bottom:5px; margin-top:14px; letter-spacing:0.02em; }
+label:first-of-type { margin-top:0; }
+select, input[type="text"], textarea { width:100%; background:var(--bg); border:1px solid var(--border2); color:var(--text); font-family:var(--sans); font-size:12px; padding:8px 11px; outline:none; transition:border-color 0.15s, box-shadow 0.15s; resize:none; appearance:none; border-radius:4px; }
+select:focus, input:focus, textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+.field-note { font-size:10px; color:var(--text3); margin-top:4px; line-height:1.5; }
+#novelFields { display:none; }
+.smiles-display { margin-top:5px; background:var(--bg); border:1px solid var(--border); padding:6px 10px; font-family:var(--mono); font-size:9px; color:var(--blue); min-height:26px; word-break:break-all; border-radius:3px; }
+.drop-zone { border:1px dashed var(--border2); padding:16px; text-align:center; cursor:pointer; transition:all 0.2s; position:relative; margin-top:10px; border-radius:5px; }
+.drop-zone:hover { border-color:var(--accent); background:var(--accent-glow); }
+.drop-zone input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; padding:0; border:none; }
+.drop-text { font-size:10px; color:var(--text3); line-height:1.6; }
+.drop-preview { max-width:100%; max-height:80px; margin-top:6px; display:none; object-fit:contain; border-radius:3px; }
+.mode-toggle { display:grid; grid-template-columns:1fr 1fr; border:1px solid var(--border2); border-radius:5px; overflow:hidden; margin-bottom:14px; }
+.mode-btn { font-family:var(--sans); font-size:11px; font-weight:500; padding:8px 6px; cursor:pointer; color:var(--text3); background:transparent; border:none; transition:all 0.15s; text-align:center; }
+.mode-btn.active { background:var(--accent-dim); color:var(--accent); }
+.marker-grid { display:flex; flex-wrap:wrap; gap:5px; margin-top:2px; }
+.mtag { font-family:var(--mono); font-size:9.5px; padding:4px 8px; border:1px solid var(--border2); cursor:pointer; color:var(--text3); background:transparent; transition:all 0.12s; border-radius:3px; }
+.mtag:hover { border-color:var(--accent); color:var(--accent); }
+.mtag.active { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
+.custom-marker-row { display:flex; gap:6px; margin-top:10px; }
+.custom-marker-row input { flex:1; margin-top:0; }
+.add-btn { font-family:var(--sans); font-size:11px; font-weight:500; padding:8px 13px; background:transparent; border:1px solid var(--border2); color:var(--text2); cursor:pointer; white-space:nowrap; transition:all 0.12s; border-radius:4px; }
+.add-btn:hover { border-color:var(--accent); color:var(--accent); }
+.run-btn { width:100%; background:var(--accent); border:none; color:#030712; font-family:var(--sans); font-size:12px; font-weight:600; letter-spacing:0.06em; padding:13px; cursor:pointer; transition:all 0.2s; border-radius:5px; margin-top:4px; }
+.run-btn:hover { background:#6ee7b7; transform:translateY(-1px); box-shadow:0 4px 20px rgba(52,211,153,0.25); }
+.run-btn:disabled { opacity:0.35; cursor:not-allowed; transform:none; box-shadow:none; }
+.status-row { display:flex; align-items:center; gap:8px; padding:10px 0 0; font-size:10px; color:var(--text3); min-height:28px; }
+.dot { width:6px; height:6px; border-radius:50%; background:var(--text3); flex-shrink:0; }
+.dot.running { background:var(--accent); animation:blink 0.9s infinite; }
+.dot.error { background:var(--red); }
+.dot.done { background:var(--accent); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }
+.right-panel { display:flex; flex-direction:column; overflow:hidden; background:var(--bg); }
+.tab-bar { display:flex; border-bottom:1px solid var(--border); background:var(--surface); padding:0 28px; gap:4px; }
+.tab { font-family:var(--sans); font-size:11px; font-weight:500; padding:14px 16px; cursor:pointer; color:var(--text3); border-bottom:2px solid transparent; margin-bottom:-1px; background:none; border-top:none; border-left:none; border-right:none; transition:all 0.15s; white-space:nowrap; }
+.tab:hover { color:var(--text2); }
+.tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.tab-body { flex:1; overflow-y:auto; padding:28px 32px; scrollbar-width:thin; scrollbar-color:var(--border2) transparent; }
+.tc { display:none; }
+.tc.active { display:block; }
+.warn { background:rgba(251,146,60,0.06); border:1px solid rgba(251,146,60,0.2); border-left:3px solid var(--orange); padding:10px 14px; font-size:11px; color:rgba(251,146,60,0.85); line-height:1.6; margin-bottom:24px; border-radius:0 5px 5px 0; }
+.gel-wrap { background:#030408; border:1px solid var(--border); padding:20px 24px 24px; margin-bottom:20px; border-radius:6px; }
+.gel-header { font-family:var(--mono); font-size:9px; letter-spacing:0.2em; color:var(--text3); text-transform:uppercase; margin-bottom:16px; display:flex; justify-content:space-between; }
+.pred-table { width:100%; border-collapse:collapse; font-size:12px; }
+.pred-table th { font-family:var(--mono); font-size:8.5px; letter-spacing:0.16em; text-transform:uppercase; color:var(--text3); padding:8px 12px; border-bottom:1px solid var(--border2); text-align:left; font-weight:400; }
+.pred-table td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:top; line-height:1.5; }
+.pred-table tr:hover td { background:rgba(255,255,255,0.015); }
+.up { color:var(--accent); } .down { color:var(--red); } .none { color:var(--text3); } .unknown { color:var(--orange); }
+.conf-bar { display:inline-block; width:52px; height:3px; background:var(--border2); border-radius:2px; vertical-align:middle; overflow:hidden; }
+.conf-fill { height:100%; border-radius:2px; transition:width 1.2s ease; }
+.round { margin-bottom:22px; animation:rise 0.35s ease; }
+@keyframes rise { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+.round-tag { font-family:var(--mono); font-size:8px; letter-spacing:0.2em; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+.bubble { font-family:var(--serif); font-size:14px; line-height:1.85; padding:14px 18px; border-left:2px solid; background:rgba(255,255,255,0.018); color:rgba(226,232,240,0.9); border-radius:0 5px 5px 0; }
+.bubble.a { border-color:var(--accent); } .bubble.b { border-color:var(--orange); } .bubble.j { border-color:var(--purple); background:rgba(167,139,250,0.04); }
+.pathway-summary { font-family:var(--serif); font-size:15px; line-height:1.9; font-style:italic; color:rgba(226,232,240,0.85); padding:16px 20px; border-left:2px solid var(--purple); background:rgba(167,139,250,0.04); margin-bottom:24px; border-radius:0 6px 6px 0; }
+.mech-item { margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+.mech-item:last-child { border-bottom:none; }
+.mech-marker { font-family:var(--mono); font-size:10px; letter-spacing:0.1em; color:var(--accent); margin-bottom:5px; }
+.mech-text { font-family:var(--serif); font-size:13.5px; line-height:1.8; color:rgba(226,232,240,0.8); }
+.no-data { background:rgba(251,146,60,0.05); border:1px dashed rgba(251,146,60,0.25); padding:12px 16px; font-size:11px; color:rgba(251,146,60,0.75); line-height:1.7; margin-bottom:18px; border-radius:5px; }
+.empty { display:flex; align-items:center; justify-content:center; min-height:280px; color:var(--text3); font-size:13px; font-family:var(--serif); font-style:italic; }
+.spinner { width:18px; height:18px; border:2px solid var(--border2); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+@media (max-width:768px) { .main-layout { grid-template-columns:1fr; } .sidebar { border-right:none; border-bottom:1px solid var(--border); } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo-mark">WB · Predictor</div>
+  <div class="logo-sub">Western blot prediction engine</div>
+  <div class="version-tag">PubChem · PMC · Cellosaurus · UniProt · LINCS · cBioPortal</div>
+  <div class="version-tag">WB DB: <span id="dbStatusBadge">loading...</span></div>
+</div>
+
+<div class="main-layout">
+  <div class="sidebar">
+
+    <div class="section">
+      <div class="section-label"><span class="num">01</span> Cell line</div>
+      <label>Known cell lines</label>
+      <select id="cellLine">
+        <option value="">— select —</option>
+        <optgroup label="Cancer cell lines">
+          <option>HeLa (cervical cancer)</option>
+          <option>MCF-7 (breast cancer, ER+)</option>
+          <option>MDA-MB-231 (TNBC)</option>
+          <option>A549 (lung cancer, KRAS mut)</option>
+          <option>HCT116 (colorectal cancer)</option>
+          <option>U87MG (glioblastoma)</option>
+          <option>PC-3 (prostate cancer)</option>
+          <option>HepG2 (hepatocellular carcinoma)</option>
+          <option>Jurkat (T-cell leukemia)</option>
+          <option>K562 (CML)</option>
+          <option>SNU-16 (gastric cancer, FGFR2 amp)</option>
+          <option>NCI-H1299 (lung cancer, p53 null)</option>
+        </optgroup>
+        <optgroup label="Non-tumor cell lines">
+          <option>HEK293 (kidney)</option>
+          <option>NIH3T3 (fibroblast)</option>
+          <option>HUVEC (endothelial)</option>
+        </optgroup>
+        <option value="__custom__">Enter manually...</option>
+      </select>
+      <div id="customCellWrap" style="display:none;margin-top:8px;">
+        <input type="text" id="customCell" placeholder="Cell line, tissue origin, mutations..." />
+        <div class="field-note">e.g. primary NSCLC (EGFR exon19 del, T790M), PDX-derived gastric cancer cells</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label"><span class="num">02</span> Drug / compound</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btnKnown" onclick="setMode('known')">Known drug</button>
+        <button class="mode-btn" id="btnNovel" onclick="setMode('novel')">Novel / unpublished</button>
+      </div>
+
+      <div id="knownFields">
+        <label>Drug name</label>
+        <input type="text" id="drugName" placeholder="e.g. Doxorubicin, Rapamycin, Gefitinib..." />
+        <div class="field-note">Approved drugs, investigational compounds and natural products are all supported</div>
+      </div>
+
+      <div id="novelFields">
+        <label>Code name <span style="color:var(--muted)">(optional)</span></label>
+        <input type="text" id="novelName" placeholder="e.g. Compound-7, SNU-INH-01..." />
+
+        <label>SMILES <span style="color:var(--orange)">*recommended</span></label>
+        <textarea id="smiles" rows="3" placeholder="Canonical SMILES&#10;e.g. aspirin: CC(=O)Oc1ccccc1C(=O)O"></textarea>
+        <div class="smiles-display" id="smilesDisplay">SMILES will be shown here</div>
+
+        <label>Molecular formula <span style="color:var(--muted)">(optional)</span></label>
+        <input type="text" id="molFormula" placeholder="e.g. C9H8O4" />
+
+        <label>Molecular weight <span style="color:var(--muted)">(optional)</span></label>
+        <input type="text" id="molWeight" placeholder="e.g. 180.16 Da" />
+
+        <label>Structural features <span style="color:var(--muted)">(optional)</span></label>
+        <textarea id="structFeatures" rows="2" placeholder="e.g. quinoline scaffold, 4-amino group, 2-chloro substitution&#10;aromatic amine, sulfonamide moiety..."></textarea>
+
+        <label>Target protein / proposed mechanism <span style="color:var(--orange)">*important</span></label>
+        <textarea id="targetInfo" rows="3" placeholder="e.g. EGFR kinase inhibitor (ATP-competitive)&#10;dual PI3K/mTOR inhibition&#10;p53-MDM2 PPI blocker&#10;Bcl-2 family inhibitor..."></textarea>
+
+        <label>Structurally similar known drug <span style="color:var(--muted)">(optional)</span></label>
+        <input type="text" id="analogDrug" placeholder="e.g. erlotinib derivative, sorafenib-like scaffold..." />
+        <div class="field-note">Providing an analogue lets the engine use its published data, improving accuracy</div>
+
+        <label>Structure image <span style="color:var(--muted)">(optional)</span></label>
+        <div class="drop-zone" id="dropZone">
+          <input type="file" accept="image/*" id="structImage" onchange="handleImage(event)" />
+          <div class="drop-text" id="dropText">Click or drop<br><span style="font-size:8px;color:var(--muted)">2D structure, 3D model image, etc.</span></div>
+          <img class="drop-preview" id="previewImg" alt="" />
+        </div>
+      </div>
+
+      <label style="margin-top:14px;">Concentration</label>
+      <input type="text" id="concentration" placeholder="e.g. 10 uM, 100 nM, 1 mg/mL" />
+
+      <label>Treatment time</label>
+      <input type="text" id="timepoint" placeholder="e.g. 24h, 48h, 6h+18h washout" />
+
+      <label>Treatment condition <span style="color:var(--muted)">(optional)</span></label>
+      <input type="text" id="treatCondition" placeholder="e.g. serum-free, hypoxia, + paclitaxel..." />
+    </div>
+
+    <div class="section">
+      <div class="section-label"><span class="num">03</span> Markers</div>
+      <div class="marker-grid" id="markerGrid">
+        <button class="mtag" data-m="p53">p53</button>
+        <button class="mtag" data-m="p-p53(Ser15)">p-p53</button>
+        <button class="mtag" data-m="Bcl-2">Bcl-2</button>
+        <button class="mtag" data-m="Bax">Bax</button>
+        <button class="mtag" data-m="cleaved Caspase-3">cl.Casp3</button>
+        <button class="mtag" data-m="cleaved Caspase-9">cl.Casp9</button>
+        <button class="mtag" data-m="cleaved PARP">cl.PARP</button>
+        <button class="mtag" data-m="p21">p21</button>
+        <button class="mtag" data-m="Cyclin D1">CycD1</button>
+        <button class="mtag" data-m="CDK4">CDK4</button>
+        <button class="mtag" data-m="CDK6">CDK6</button>
+        <button class="mtag" data-m="p-ERK1/2">p-ERK</button>
+        <button class="mtag" data-m="ERK1/2">ERK</button>
+        <button class="mtag" data-m="p-AKT(Ser473)">p-AKT</button>
+        <button class="mtag" data-m="AKT">AKT</button>
+        <button class="mtag" data-m="p-mTOR(Ser2448)">p-mTOR</button>
+        <button class="mtag" data-m="mTOR">mTOR</button>
+        <button class="mtag" data-m="p-S6K1">p-S6K1</button>
+        <button class="mtag" data-m="p-4EBP1">p-4EBP1</button>
+        <button class="mtag" data-m="p-EGFR(Tyr1068)">p-EGFR</button>
+        <button class="mtag" data-m="EGFR">EGFR</button>
+        <button class="mtag" data-m="HER2">HER2</button>
+        <button class="mtag" data-m="LC3B-II">LC3B</button>
+        <button class="mtag" data-m="Beclin-1">Beclin1</button>
+        <button class="mtag" data-m="gamma-H2AX">gH2AX</button>
+        <button class="mtag" data-m="PCNA">PCNA</button>
+        <button class="mtag" data-m="E-cadherin">E-cad</button>
+        <button class="mtag" data-m="Vimentin">Vim</button>
+        <button class="mtag" data-m="N-cadherin">N-cad</button>
+        <button class="mtag" data-m="MMP-9">MMP9</button>
+        <button class="mtag" data-m="STAT3">STAT3</button>
+        <button class="mtag" data-m="p-STAT3(Tyr705)">p-STAT3</button>
+        <button class="mtag" data-m="NF-kB p65">NF-kB</button>
+        <button class="mtag active" data-m="beta-actin">beta-actin</button>
+        <button class="mtag active" data-m="GAPDH">GAPDH</button>
+      </div>
+      <div class="custom-marker-row">
+        <input type="text" id="customMarkerInput" placeholder="Add a marker (e.g. p-JAK2, IDH1...)" />
+        <button class="add-btn" onclick="addCustomMarker()">+ Add</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <button class="run-btn" id="runBtn" onclick="runAnalysis()"><span>Run prediction</span></button>
+      <div class="status-row">
+        <div class="dot" id="statusDot"></div>
+        <span id="statusText">Idle</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="right-panel">
+    <div class="tab-bar">
+      <button class="tab active" onclick="showTab('table')">Prediction table</button>
+      <button class="tab" onclick="showTab('gel')">Simulated blot</button>
+      <button class="tab" onclick="showTab('review')">Evidence review</button>
+      <button class="tab" onclick="showTab('pathway')">Signaling</button>
+    </div>
+    <div class="tab-body">
+      <div class="tc active" id="tc-table"><div id="tableOut"><div class="empty"><span>No prediction yet</span></div></div></div>
+      <div class="tc" id="tc-gel">
+        <div class="warn">Predictions are derived from published data and signaling logic. Always confirm experimentally. Novel compounds are inferred from analogue data and target mechanism, so uncertainty is higher.</div>
+        <div id="gelOut"><div class="empty"><span>Enter the experimental conditions and run the prediction</span></div></div>
+      </div>
+      <div class="tc" id="tc-review"><div id="reviewOut"><div class="empty"><span>No review yet</span></div></div></div>
+      <div class="tc" id="tc-pathway"><div id="pathwayOut"><div class="empty"><span>No mechanism analysis yet</span></div></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+var currentMode = 'known';
+var structImageB64 = null;
+
+// ── WB database (wb_db.csv, loaded once into an in-memory index) ──
+var WB_DB = null;         // row objects
+var WB_DB_IDX = {};       // drug -> cell -> rows
+var WB_DB_DRUG_IDX = {};  // drug -> rows
+var WB_DB_STATUS = 'idle';
+
+function parseCSV(text) {
+  var lines = text.split('\n');
+  var headers = lines[0].split(',').map(function(h) { return h.trim().replace(/^"|"$/g, ''); });
+  var rows = [];
+  for (var i = 1; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) continue;
+    var vals = [], cur = '', inQ = false;
+    for (var c = 0; c < line.length; c++) {
+      var ch = line[c];
+      if (ch === '"') inQ = !inQ;
+      else if (ch === ',' && !inQ) { vals.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    vals.push(cur);
+    var row = {};
+    headers.forEach(function(h, idx) { row[h] = vals[idx] !== undefined ? vals[idx].trim() : ''; });
+    rows.push(row);
+  }
+  return rows;
+}
+
+function buildDBIndex(rows) {
+  var idx = {}, drugIdx = {};
+  rows.forEach(function(r) {
+    var d = (r.drug || '').toLowerCase().trim();
+    var c = (r.cell || '').toLowerCase().trim();
+    if (!d) return;
+    if (!idx[d]) idx[d] = {};
+    if (!idx[d][c]) idx[d][c] = [];
+    idx[d][c].push(r);
+    if (!drugIdx[d]) drugIdx[d] = [];
+    drugIdx[d].push(r);
+  });
+  return { byDrugCell: idx, byDrug: drugIdx };
+}
+
+function setDBBadge(text, color) {
+  var el = document.getElementById('dbStatusBadge');
+  if (el) { el.textContent = text; el.style.color = color; }
+}
+
+async function loadWBDB() {
+  if (WB_DB_STATUS === 'ready' || WB_DB_STATUS === 'loading') return;
+  WB_DB_STATUS = 'loading';
+  try {
+    var r = await fetch('wb_db.csv');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    var text = await r.text();
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    WB_DB = parseCSV(text);
+    var built = buildDBIndex(WB_DB);
+    WB_DB_IDX = built.byDrugCell;
+    WB_DB_DRUG_IDX = built.byDrug;
+    WB_DB_STATUS = 'ready';
+    setDBBadge(WB_DB.length.toLocaleString() + ' records', 'var(--green)');
+  } catch (e) {
+    WB_DB_STATUS = 'error';
+    setDBBadge('load failed', 'var(--red)');
+  }
+}
+
+// ── String normalisation ──
+function normStr(s) {
+  return (s || '').toLowerCase().replace(/[-_\s\/\(\)]/g, '').replace(/phospho|p-/g, 'p');
+}
+
+// ── Condition similarity (concentration + time), 0..1 ──
+function parseNum(s) {
+  if (!s || s === 'nan') return null;
+  var m = String(s).match(/([\d.]+)/);
+  return m ? parseFloat(m[1]) : null;
+}
+
+function conditionScore(row, inputConc, inputTime) {
+  var cScore = 0.5; // neutral when unknown
+  var ic = parseNum(inputConc), dc = parseNum(row.conc_uM);
+  if (ic !== null && dc !== null && ic > 0 && dc > 0) {
+    // 0 log unit -> 1.0, 1 log unit -> 0.5, 2 log units -> 0.0
+    cScore = Math.max(0, 1 - Math.abs(Math.log10(ic) - Math.log10(dc)) / 2);
+  }
+  var tScore = 0.5;
+  var it = parseNum(inputTime), dt = parseNum(row.time_h);
+  if (it !== null && dt !== null) {
+    // 0 h apart -> 1.0, 24 h -> 0.5, 48 h+ -> 0.0
+    tScore = Math.max(0, 1 - Math.abs(it - dt) / 48);
+  }
+  return (cScore + tScore) / 2;
+}
+
+function condScoreToDelta(score) { return Math.round((score - 0.5) * 30); } // +15 .. -15
+function condLabel(score) {
+  if (score >= 0.85) return 'conditions match';
+  if (score >= 0.65) return 'conditions close';
+  if (score >= 0.40) return 'conditions similar';
+  return 'conditions differ';
+}
+
+// ── Query: drug + cell + markers ──
+function queryWBDB(drugName, cellLine, markers, inputConc, inputTime) {
+  if (WB_DB_STATUS !== 'ready') return null;
+
+  var dNorm = normStr(drugName);
+  var cNorm = normStr(cellLine.split(' ')[0]);
+
+  var exactRows = [];
+  Object.keys(WB_DB_IDX).forEach(function(dk) {
+    if (normStr(dk) !== dNorm) return;
+    var cellMap = WB_DB_IDX[dk];
+    Object.keys(cellMap).forEach(function(ck) {
+      var cn = normStr(ck);
+      if (cn === cNorm || cn.indexOf(cNorm) >= 0 || cNorm.indexOf(cn) >= 0) {
+        exactRows = exactRows.concat(cellMap[ck]);
+      }
+    });
+  });
+
+  var drugOnlyRows = [];
+  Object.keys(WB_DB_DRUG_IDX).forEach(function(dk) {
+    if (normStr(dk) === dNorm) drugOnlyRows = drugOnlyRows.concat(WB_DB_DRUG_IDX[dk]);
+  });
+  var seenExact = new Set(exactRows.map(function(r) { return r.pmcid + r.cell + r.marker; }));
+  drugOnlyRows = drugOnlyRows.filter(function(r) { return !seenExact.has(r.pmcid + r.cell + r.marker); });
+
+  var mNorms = (markers || []).map(normStr);
+  function markerMatch(row) {
+    var mn = normStr(row.marker);
+    return mNorms.some(function(m) { return mn === m || mn.indexOf(m) >= 0 || m.indexOf(mn) >= 0; });
+  }
+  var exactFiltered = exactRows.filter(markerMatch);
+  var drugFiltered = drugOnlyRows.filter(markerMatch);
+
+  // Best-matching condition row per marker
+  var condMap = {};
+  exactFiltered.forEach(function(r) {
+    var mn = normStr(r.marker);
+    var score = conditionScore(r, inputConc, inputTime);
+    if (!condMap[mn] || score > condMap[mn].score) {
+      condMap[mn] = { score: score, delta: condScoreToDelta(score), label: condLabel(score), bestRow: r };
+    }
+  });
+
+  return { exact: exactFiltered, drugOnly: drugFiltered, condMap: condMap };
+}
+
+// ── Multi-source voting: adjusts confidence from DB / LINCS / model agreement ──
+function applyVoting(preds, dbResult, lincs) {
+  if (!preds || !preds.length) return preds;
+
+  var lincsUp = new Set((lincs && lincs.upGenes || []).map(normStr));
+  var lincsDown = new Set((lincs && lincs.downGenes || []).map(normStr));
+
+  var dbDirMap = {};
+  if (dbResult && dbResult.exact) {
+    dbResult.exact.forEach(function(r) {
+      var mn = normStr(r.marker);
+      if (!dbDirMap[mn]) dbDirMap[mn] = { up: 0, down: 0, none: 0, unknown: 0 };
+      var w = parseInt(r.quality) || 50;
+      var d = (r.direction || 'unknown').toLowerCase();
+      if (dbDirMap[mn][d] !== undefined) dbDirMap[mn][d] += w;
+      else dbDirMap[mn].unknown += w;
+    });
+  }
+  var condMap = (dbResult && dbResult.condMap) || {};
+
+  preds.forEach(function(p) {
+    if (!p.marker) return;
+    var mn = normStr(p.marker);
+    var predDir = (p.direction || '').toLowerCase();
+    var votes = [];
+
+    if (dbDirMap[mn]) {
+      var dmap = dbDirMap[mn];
+      if (dmap.up + dmap.down + dmap.none + dmap.unknown > 0) {
+        var bestDir = Object.keys(dmap).reduce(function(a, b) { return dmap[a] > dmap[b] ? a : b; });
+        votes.push({ src: 'DB', dir: bestDir, weight: 3 });
+      }
+    }
+    var geneKey = mn.replace(/cleaved|phospho|total|p-/g, '').replace(/[^a-z0-9]/g, '');
+    if (lincsUp.has(geneKey) || lincsUp.has(mn)) votes.push({ src: 'LINCS', dir: 'up', weight: 1 });
+    else if (lincsDown.has(geneKey) || lincsDown.has(mn)) votes.push({ src: 'LINCS', dir: 'down', weight: 1 });
+
+    votes.push({ src: 'Model', dir: predDir, weight: 2 });
+
+    if (votes.length < 2) { p.voteNote = null; return; }
+
+    var scoreMap = { up: 0, down: 0, none: 0, unknown: 0 };
+    votes.forEach(function(v) { if (scoreMap[v.dir] !== undefined) scoreMap[v.dir] += v.weight; });
+    var totalW = votes.reduce(function(s, v) { return s + v.weight; }, 0);
+    var agreeRatio = totalW > 0 ? (scoreMap[predDir] || 0) / totalW : 0;
+
+    var delta = 0;
+    if (agreeRatio >= 0.8) delta = 10;
+    else if (agreeRatio >= 0.6) delta = 5;
+    else if (agreeRatio <= 0.25) delta = -15;
+    else if (agreeRatio <= 0.4) delta = -8;
+    if (condMap[mn]) delta += condMap[mn].delta;
+
+    p.confidence = Math.max(5, Math.min(97, (p.confidence || 0) + delta));
+
+    var srcLabels = votes.map(function(v) {
+      return v.src + ':' + (v.dir === 'up' ? 'up' : v.dir === 'down' ? 'down' : '-');
+    });
+    var condNote = condMap[mn] ? ' | ' + condMap[mn].label + ' (' + Math.round(condMap[mn].score * 100) + '%)' : '';
+    p.voteNote = srcLabels.join(' / ') + (delta !== 0 ? ' -> ' + (delta > 0 ? '+' : '') + delta : '') + condNote;
+  });
+
+  return preds;
+}
+
+// ── Calibration: predictions vs. DB ground truth ──
+function buildCalibration(preds, dbResult) {
+  if (!preds || !dbResult || !dbResult.exact || !dbResult.exact.length) return null;
+
+  var consensus = {};
+  dbResult.exact.forEach(function(r) {
+    var mn = normStr(r.marker);
+    if (!consensus[mn]) consensus[mn] = { up: 0, down: 0, none: 0, unknown: 0, rows: 0 };
+    var d = (r.direction || 'unknown').toLowerCase();
+    if (consensus[mn][d] !== undefined) consensus[mn][d] += parseInt(r.quality) || 50;
+    consensus[mn].rows++;
+  });
+
+  var results = [];
+  preds.forEach(function(p) {
+    var con = consensus[normStr(p.marker)];
+    if (!con) return;
+    var dbDir = ['up', 'down', 'none', 'unknown'].reduce(function(a, b) { return con[a] > con[b] ? a : b; });
+    var predDir = (p.direction || '').toLowerCase();
+    results.push({ marker: p.marker, predDir: predDir, dbDir: dbDir, conf: p.confidence || 0, match: dbDir === predDir });
+  });
+  if (!results.length) return null;
+
+  var bins = { high: { correct: 0, total: 0 }, mid: { correct: 0, total: 0 }, low: { correct: 0, total: 0 } };
+  results.forEach(function(r) {
+    var bin = r.conf >= 70 ? 'high' : r.conf >= 40 ? 'mid' : 'low';
+    bins[bin].total++;
+    if (r.match) bins[bin].correct++;
+  });
+  var matchCount = results.filter(function(r) { return r.match; }).length;
+
+  return { results: results, accuracy: Math.round(matchCount / results.length * 100), bins: bins, total: results.length, matchCount: matchCount };
+}
+
+// ── DB rows -> corpus text ──
+function dbResultsToCorpus(dbResult) {
+  if (!dbResult) return '';
+  var out = '', shown = new Set();
+  function rowKey(r) { return r.pmcid + '|' + r.cell + '|' + r.drug + '|' + r.marker; }
+  function cond(r) {
+    var s = '';
+    if (r.conc_uM) s += ' ' + r.conc_uM + 'uM';
+    if (r.time_h) s += ' ' + r.time_h + 'h';
+    return s;
+  }
+
+  if (dbResult.exact && dbResult.exact.length) {
+    out += '\n\n[WB database - same cell line and drug, direct experimental data]\n';
+    out += 'These are western blot results extracted from published papers. Treat them as the highest priority evidence.\n';
+    dbResult.exact.forEach(function(r) {
+      var k = rowKey(r);
+      if (shown.has(k)) return;
+      shown.add(k);
+      out += '[PMC' + r.pmcid + ' | ' + r.cell + ' | ' + r.drug + cond(r);
+      if (r.condition && r.condition !== 'nan') out += ' | ' + r.condition;
+      out += '] ' + r.marker + ': ' + r.direction;
+      if (r.intensity && r.intensity !== 'nan') out += ' (' + r.intensity + ')';
+      if (r.quality) out += ' [Q:' + r.quality + ']';
+      var c = dbResult.condMap && dbResult.condMap[normStr(r.marker)];
+      if (c) out += ' [' + c.label + ', confidence adj ' + (c.delta >= 0 ? '+' : '') + c.delta + ']';
+      out += '\n';
+    });
+  }
+
+  if (dbResult.drugOnly && dbResult.drugOnly.length) {
+    out += '\n\n[WB database - same drug, other cell lines]\n';
+    out += 'Supporting evidence only: same drug in different cell lines.\n';
+    dbResult.drugOnly.slice()
+      .sort(function(a, b) { return (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0); })
+      .slice(0, 30).forEach(function(r) {
+        var k = rowKey(r);
+        if (shown.has(k)) return;
+        shown.add(k);
+        out += '[PMC' + r.pmcid + ' | ' + r.cell + ' | ' + r.drug + cond(r) + '] ' + r.marker + ': ' + r.direction;
+        if (r.intensity && r.intensity !== 'nan') out += ' (' + r.intensity + ')';
+        out += '\n';
+      });
+  }
+
+  return out;
+}
+
+// ── UI ──
+window.addEventListener('DOMContentLoaded', loadWBDB);
+
+document.getElementById('cellLine').addEventListener('change', function() {
+  document.getElementById('customCellWrap').style.display = this.value === '__custom__' ? 'block' : 'none';
+});
+
+function setMode(m) {
+  currentMode = m;
+  document.getElementById('knownFields').style.display = m === 'known' ? 'block' : 'none';
+  document.getElementById('novelFields').style.display = m === 'novel' ? 'block' : 'none';
+  document.getElementById('btnKnown').classList.toggle('active', m === 'known');
+  document.getElementById('btnNovel').classList.toggle('active', m === 'novel');
+}
+
+document.getElementById('smiles').addEventListener('input', function() {
+  var v = this.value.trim();
+  document.getElementById('smilesDisplay').textContent = v
+    ? 'SMILES: ' + v.substring(0, 90) + (v.length > 90 ? '...' : '')
+    : 'SMILES will be shown here';
+});
+
+function handleImage(evt) {
+  var file = evt.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    structImageB64 = e.target.result.split(',')[1];
+    var img = document.getElementById('previewImg');
+    img.src = e.target.result;
+    img.style.display = 'block';
+    document.getElementById('dropText').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+var dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.style.borderColor = 'var(--green)'; });
+dz.addEventListener('dragleave', function() { dz.style.borderColor = ''; });
+dz.addEventListener('drop', function(e) {
+  e.preventDefault();
+  dz.style.borderColor = '';
+  var f = e.dataTransfer.files[0];
+  if (f) handleImage({ target: { files: [f] } });
+});
+
+document.querySelectorAll('.mtag').forEach(function(b) {
+  b.addEventListener('click', function() { b.classList.toggle('active'); });
+});
+
+function addCustomMarker() {
+  var input = document.getElementById('customMarkerInput');
+  var v = input.value.trim();
+  if (!v) return;
+  var b = document.createElement('button');
+  b.className = 'mtag active';
+  b.dataset.m = v;
+  b.textContent = v;
+  b.addEventListener('click', function() { b.classList.toggle('active'); });
+  document.getElementById('markerGrid').appendChild(b);
+  input.value = '';
+}
+
+function getMarkers() {
+  return [].slice.call(document.querySelectorAll('.mtag.active')).map(function(b) { return b.dataset.m; });
+}
+
+function showTab(n) {
+  var ns = ['table', 'gel', 'review', 'pathway'];
+  document.querySelectorAll('.tab').forEach(function(t, i) { t.classList.toggle('active', ns[i] === n); });
+  document.querySelectorAll('.tc').forEach(function(c) { c.classList.remove('active'); });
+  document.getElementById('tc-' + n).classList.add('active');
+}
+
+function setStatus(s, t) {
+  document.getElementById('statusDot').className = 'dot' + (s ? ' ' + s : '');
+  document.getElementById('statusText').textContent = t;
+}
+
+// ── fetch with timeout, never throws ──
+function tFetch(url, ms, opts) {
+  var ctrl = new AbortController();
+  var timer = setTimeout(function() { ctrl.abort(); }, ms || 5000);
+  return fetch(url, Object.assign({}, opts || {}, { signal: ctrl.signal }))
+    .catch(function() { return null; })
+    .finally(function() { clearTimeout(timer); });
+}
+
+// ── PubChem (NIH) ──
+async function getPubChemData(drugName) {
+  try {
+    var r1 = await tFetch('https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/' + encodeURIComponent(drugName) + '/cids/JSON', 4000);
+    if (!r1 || !r1.ok) return { found: false };
+    var j1 = await r1.json();
+    var cid = j1.IdentifierList && j1.IdentifierList.CID && j1.IdentifierList.CID[0];
+    if (!cid) return { found: false };
+
+    var res = await Promise.all([
+      tFetch('https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/' + cid + '/property/MolecularFormula,MolecularWeight,CanonicalSMILES/JSON', 4000),
+      tFetch('https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/' + cid + '/JSON?heading=Pharmacology+and+Biochemistry', 6000)
+    ]);
+    var props = res[0] && res[0].ok ? (((await res[0].json()).PropertyTable || {}).Properties || []) : [];
+    var p = props[0] || {};
+    var pharma = '';
+    if (res[1] && res[1].ok) {
+      var sections = ((await res[1].json()).Record || {}).Section || [];
+      (function walk(ss) {
+        ss.forEach(function(s) {
+          if (s.Information) s.Information.forEach(function(info) {
+            if (info.Value && info.Value.StringWithMarkup) {
+              info.Value.StringWithMarkup.forEach(function(x) { pharma += x.String + ' '; });
+            }
+          });
+          if (s.Section) walk(s.Section);
+        });
+      })(sections);
+    }
+    return {
+      found: true, cid: cid, url: 'https://pubchem.ncbi.nlm.nih.gov/compound/' + cid,
+      formula: p.MolecularFormula || null, mw: p.MolecularWeight || null,
+      smiles: p.CanonicalSMILES || null, pharmacology: pharma.trim().substring(0, 1500)
+    };
+  } catch (e) { return { found: false }; }
+}
+
+// ── Cellosaurus (SIB) ──
+async function getCellosaurusData(cellLine) {
+  try {
+    var name = cellLine.split(' ')[0].replace(/[()]/g, '');
+    var r = await tFetch('https://api.cellosaurus.org/cell-line/' + encodeURIComponent(name) + '?format=json&fields=id,ac,sequence-variation,disease,comment', 5000);
+    if (!r || !r.ok) return null;
+    var entry = ((await r.json())['cell-line-list'] || [])[0];
+    if (!entry) return null;
+    var variants = (entry['sequence-variation-list'] || []).map(function(v) {
+      var gene = v['gene-list'] ? v['gene-list'].map(function(g) { return g.name; }).join('/') : '';
+      return (gene + ' ' + (v['variant-type'] || '') + ': ' + (v['mutation-description'] || '')).trim();
+    }).filter(Boolean);
+    var comments = (entry['comment-list'] || [])
+      .filter(function(c) { return ['Sequence variation', 'Characteristics', 'Miscellaneous'].indexOf(c.category) >= 0; })
+      .map(function(c) { return c.value; }).join(' | ');
+    return {
+      ac: entry.ac, name: entry.id,
+      disease: (entry['disease-list'] || []).map(function(d) { return d.name; }).join(', '),
+      variants: variants, comments: comments,
+      url: 'https://www.cellosaurus.org/' + entry.ac
+    };
+  } catch (e) { return null; }
+}
+
+// ── UniProt: marker protein function, used when WB data is sparse ──
+async function getUniProtInfo(markerName) {
+  try {
+    var gene = markerName
+      .replace(/^(p-|phospho-|cleaved\s*|cl\.\s*)/i, '')
+      .replace(/\s*\([^)]*\)/g, '')
+      .replace(/[^A-Za-z0-9]/g, '')
+      .toUpperCase();
+    if (gene.length < 2) return null;
+    var r = await tFetch('https://rest.uniprot.org/uniprotkb/search?query=gene_exact:' + gene + '+AND+organism_id:9606+AND+reviewed:true&fields=id,gene_names,protein_name,cc_function,cc_pathway,keyword&format=json&size=1', 5000);
+    if (!r || !r.ok) return null;
+    var e = ((await r.json()).results || [])[0];
+    if (!e) return null;
+    function comment(type) {
+      var c = (e.comments || []).find(function(x) { return x.commentType === type; });
+      return c && c.texts && c.texts[0] ? c.texts[0].value : '';
+    }
+    var fnText = comment('FUNCTION'), pwText = comment('PATHWAY');
+    var kws = (e.keywords || []).map(function(k) { return k.name; })
+      .filter(function(k) { return /apoptosis|cell.cycle|kinase|signaling|iron|oxidative|autophagy|mTOR|MAPK|PI3K|p53|JAK|STAT/i.test(k); })
+      .slice(0, 5).join(', ');
+    if (!fnText && !pwText && !kws) return null;
+    return { gene: gene, fn: fnText.substring(0, 250), pw: pwText.substring(0, 150), kws: kws };
+  } catch (e) { return null; }
+}
+
+// ── LINCS L1000: transcriptional signature after drug treatment ──
+async function getLINCSL1000(drugName, cellLine) {
+  try {
+    var cellShort = cellLine.split(' ')[0].replace(/[()]/g, '');
+    var nameLower = drugName.toLowerCase().trim();
+    var headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+    var r = await tFetch('https://maayanlab.cloud/L1000FWD/api/signature', 6000, {
+      method: 'POST', headers: headers,
+      body: JSON.stringify({ pert_desc: drugName, cell_id: cellShort, limit: 5 })
+    });
+    if (!r || !r.ok) {
+      r = await tFetch('https://maayanlab.cloud/L1000FWD/api/signature', 6000, {
+        method: 'POST', headers: headers,
+        body: JSON.stringify({ pert_desc: drugName, limit: 5 })
+      });
+      if (!r || !r.ok) return null;
+    }
+    var d = await r.json();
+    var sigs = Array.isArray(d) ? d : (d.data || d.signatures || []);
+    // exact drug-name match only, otherwise the signature is noise
+    var sig = sigs.find(function(s) { return (s.pert_desc || '').toLowerCase().trim() === nameLower; });
+    if (!sig) return null;
+    var upGenes = (sig.up_genes || []).slice(0, 20);
+    var downGenes = (sig.down_genes || []).slice(0, 20);
+    if (!upGenes.length && !downGenes.length) return null;
+    return {
+      found: true, drugName: sig.pert_desc || drugName, cellLine: sig.cell_id || cellShort,
+      upGenes: upGenes, downGenes: downGenes,
+      dose: sig.pert_dose || '', time: sig.pert_time || '', source: 'L1000FWD'
+    };
+  } catch (e) { return null; }
+}
+
+async function getLINCSData(drugName, cellLine) {
+  try {
+    var r = await tFetch('https://www.ilincs.org/api/ilincsR/findDrugs?term=' + encodeURIComponent(drugName) + '&limit=5', 6000, { headers: { 'Accept': 'application/json' } });
+    if (!r || !r.ok) return null;
+    var d = await r.json();
+    var drugs = d.data || d || [];
+    var nameLower = drugName.toLowerCase().trim();
+    var match = drugs.find(function(dr) { return (dr.name || dr.pert_iname || '').toLowerCase().trim() === nameLower; });
+    if (!match) return null;
+    var sigId = match.signatureId || match.sig_id || null;
+    if (!sigId) return null;
+    var r2 = await tFetch('https://www.ilincs.org/api/SignatureMeta/findById?sigid=' + encodeURIComponent(sigId), 6000, { headers: { 'Accept': 'application/json' } });
+    if (!r2 || !r2.ok) return null;
+    var sig = await r2.json();
+    var sd = sig.data && sig.data[0] ? sig.data[0] : sig;
+    return {
+      found: true, drugName: match.name || match.pert_iname || drugName,
+      cellLine: sd.cell_id || sd.cellLine || cellLine.split(' ')[0],
+      upGenes: sd.upGenes || sd.up_genes || [], downGenes: sd.downGenes || sd.down_genes || [],
+      dose: '', time: '', source: 'iLINCS'
+    };
+  } catch (e) { return null; }
+}
+
+// ── cBioPortal: target gene mutations and summary ──
+async function getCBioPortalData(drugTarget) {
+  try {
+    if (!drugTarget) return null;
+    var geneMatch = drugTarget.match(/\b([A-Z][A-Z0-9]{1,9})\b/);
+    var gene = geneMatch ? geneMatch[1] : null;
+    if (!gene) return null;
+    var headers = { 'Accept': 'application/json' };
+
+    var r = await tFetch('https://www.cbioportal.org/api/molecular-profiles/ccle_broad_2019_mutations/genes/' + encodeURIComponent(gene) + '/mutations?direction=ASC&pageNumber=0&pageSize=20', 8000, { headers: headers });
+    var mutations = [];
+    if (r && r.ok) {
+      mutations = ((await r.json()) || []).slice(0, 10).map(function(m) {
+        return (m.sampleId || '') + ': ' + (m.proteinChange || m.aminoAcidChange || '');
+      }).filter(function(s) { return s.trim() !== ':'; });
+    }
+
+    var r2 = await tFetch('https://www.cbioportal.org/api/genes/' + encodeURIComponent(gene), 5000, { headers: headers });
+    var geneSummary = '';
+    if (r2 && r2.ok) {
+      var gd = await r2.json();
+      geneSummary = gd.description || gd.summary || '';
+    }
+    if (!geneSummary && !mutations.length) return null;
+    return { found: true, gene: gene, geneSummary: geneSummary.substring(0, 400), mutations: mutations.slice(0, 8), source: 'cBioPortal' };
+  } catch (e) { return null; }
+}
+
+// ── PubMed: indirect abstracts for markers without direct data ──
+async function getIndirectPapers(markerName) {
+  try {
+    var gene = markerName
+      .replace(/^(p-|phospho-|cleaved\s*)/i, '')
+      .replace(/\s*\([^)]*\)/g, '')
+      .split('/')[0].trim();
+    var q = gene + ' protein expression cancer drug western blot';
+    var r = await tFetch('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=' + encodeURIComponent(q) + '&retmax=3&retmode=json&sort=relevance', 4000);
+    if (!r || !r.ok) return '';
+    var ids = ((await r.json()).esearchresult || {}).idlist || [];
+    var abstracts = await Promise.all(ids.map(function(id) {
+      return tFetch('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=' + id + '&rettype=abstract&retmode=text', 4000)
+        .then(function(res) { return res && res.ok ? res.text() : ''; });
+    }));
+    return abstracts.map(function(a, i) { return 'PMID:' + ids[i] + ' ' + a.substring(0, 300); })
+      .filter(function(t) { return t.length > 10; }).join('\n');
+  } catch (e) { return ''; }
+}
+
+// ── Semantic Scholar ──
+async function s2Search(query, n) {
+  try {
+    var r = await tFetch('https://api.semanticscholar.org/graph/v1/paper/search?query=' + encodeURIComponent(query) + '&limit=' + (n || 6) + '&fields=paperId,externalIds,title,abstract,authors,year,citationCount,journal', 6000, { headers: { 'Accept': 'application/json' } });
+    if (!r || !r.ok) return [];
+    return (await r.json()).data || [];
+  } catch (e) { return []; }
+}
+
+// ── PMC search and full text ──
+async function pmcSearch(query, n) {
+  try {
+    var r = await tFetch('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pmc&term=' + encodeURIComponent(query + ' AND "open access"[filter]') + '&retmax=' + (n || 4) + '&retmode=json&sort=relevance', 4000);
+    if (!r || !r.ok) return [];
+    return ((await r.json()).esearchresult || {}).idlist || [];
+  } catch (e) { return []; }
+}
+
+async function getPMCText(pmcid) {
+  try {
+    var r = await tFetch('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id=' + pmcid + '&rettype=full&retmode=xml', 8000);
+    if (!r || !r.ok) return null;
+    var txt = (await r.text()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    var idx = txt.search(/western\s*blot|immunoblot/i);
+    if (idx === -1) return txt.substring(0, 1200);
+    return txt.substring(Math.max(0, idx - 200), Math.min(txt.length, idx + 2000));
+  } catch (e) { return null; }
+}
+
+async function getPMAbstract(pmid) {
+  try {
+    var r = await tFetch('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=' + pmid + '&rettype=abstract&retmode=text', 4000);
+    if (!r || !r.ok) return null;
+    return (await r.text()).substring(0, 1200).trim();
+  } catch (e) { return null; }
+}
+
+// ── Molecular weight -> lane position ──
+var MW_DATA = {
+  'p53': 53, 'p-p53(Ser15)': 53, 'Bcl-2': 26, 'Bax': 21,
+  'cleaved Caspase-3': 17, 'cleaved Caspase-9': 35, 'cleaved PARP': 89,
+  'p21': 21, 'Cyclin D1': 36, 'CDK4': 34, 'CDK6': 36,
+  'p-ERK1/2': 44, 'ERK1/2': 44, 'p-AKT(Ser473)': 60, 'AKT': 60,
+  'p-mTOR(Ser2448)': 289, 'mTOR': 289, 'p-S6K1': 70, 'p-4EBP1': 20,
+  'p-EGFR(Tyr1068)': 134, 'EGFR': 134, 'HER2': 185,
+  'LC3B-II': 16, 'Beclin-1': 60, 'gamma-H2AX': 17, 'PCNA': 36,
+  'E-cadherin': 135, 'Vimentin': 57, 'N-cadherin': 140, 'MMP-9': 92,
+  'STAT3': 92, 'p-STAT3(Tyr705)': 92, 'NF-kB p65': 65,
+  'beta-actin': 42, 'GAPDH': 37
+};
+
+function mw2y(mw) {
+  var lo = Math.log10(12), hi = Math.log10(300);
+  return 88 - ((Math.log10(Math.max(12, Math.min(300, mw))) - lo) / (hi - lo)) * 82;
+}
+
+// ── Built-in cell line notes used when Cellosaurus is unavailable ──
+var CL_QUIRKS = {
+  'MCF-7': { deficient: { 'cleaved Caspase-3': 'MCF-7 is CASP3-deficient, so cleaved Casp3 cannot be detected (Janicke et al., Cancer Res 1998, PMID:9823396)' }, notes: 'ER+ breast cancer, wild-type p53, caspase-3 deficient' },
+  'PC-3': { deficient: {}, notes: 'p53 null, PTEN null' },
+  'NCI-H1299': { deficient: { 'p53': 'p53 null', 'p-p53(Ser15)': 'p53 null' }, notes: 'p53 homozygous deletion' },
+  'MDA-MB-231': { deficient: {}, notes: 'TNBC, mutant p53 R280K, KRAS G13D' },
+  'HCT116': { deficient: {}, notes: 'wild-type p53, KRAS G13D' },
+  'K562': { deficient: { 'p53': 'K562 is p53-deficient' }, notes: 'BCR-ABL+ CML' },
+  'Jurkat': { deficient: { 'p53': 'Jurkat carries mutant p53' }, notes: 'T-cell leukemia, PTEN null' },
+  'A549': { deficient: {}, notes: 'KRAS G12S, wild-type p53' }
+};
+
+function getQuirks(cellLine) {
+  var key = Object.keys(CL_QUIRKS).find(function(k) { return cellLine.startsWith(k); });
+  return key ? CL_QUIRKS[key] : null;
+}
+
+var LOAD_CTRL = ['beta-actin', 'GAPDH'];
+var HOUSEKEEPING = ['beta-actin', 'GAPDH', 'Tubulin', 'beta-tubulin', 'alpha-tubulin', 'Lamin B1', 'HSP90'];
+var INFERRED_LEVELS = ['mechanistic inference', 'indirect literature inference', 'structural analogue inference', 'no data'];
+
+// ── Blot rendering ──
+function renderGel(preds, cellLine, drugLabel) {
+  var CTRL_Y = { 'beta-actin': 88, 'GAPDH': 94 };
+  var IM = { high: 1, medium: 0.65, low: 0.3, faint: 0.12, unknown: 0.4 };
+  var MW_TICKS = [200, 100, 50, 25, 15];
+  var GH = 260;
+
+  var nonCtrl = preds.filter(function(p) { return LOAD_CTRL.indexOf(p.marker) < 0; });
+  var ctrl = preds.filter(function(p) { return LOAD_CTRL.indexOf(p.marker) >= 0; });
+  nonCtrl.sort(function(a, b) { return (MW_DATA[b.marker] || 50) - (MW_DATA[a.marker] || 50); });
+  var all = nonCtrl.concat(ctrl);
+
+  function bandY(p) {
+    return LOAD_CTRL.indexOf(p.marker) >= 0 ? (CTRL_Y[p.marker] || 90) : mw2y(MW_DATA[p.marker] || 50);
+  }
+
+  // Push labels apart so they stay readable
+  var MIN = 5.5;
+  var items = all.map(function(p) { return { marker: p.marker, adj: bandY(p) }; });
+  for (var pass = 0; pass < 30; pass++) {
+    var moved = false;
+    for (var i = 1; i < items.length; i++) {
+      if (items[i].adj - items[i - 1].adj < MIN) { items[i].adj = items[i - 1].adj + MIN; moved = true; }
+    }
+    if (!moved) break;
+  }
+  var LY = {};
+  items.forEach(function(d) { LY[d.marker] = d.adj; });
+
+  var html = '<div class="gel-wrap">' +
+    '<div class="gel-header"><span>Simulated western blot</span><span style="color:var(--muted2)">' + cellLine + ' + ' + drugLabel + '</span></div>' +
+    '<div style="display:flex;align-items:flex-start;">';
+
+  html += '<div style="width:38px;flex-shrink:0;position:relative;height:' + GH + 'px;margin-top:20px;">';
+  MW_TICKS.forEach(function(mw) {
+    html += '<div style="position:absolute;top:' + mw2y(mw) + '%;right:4px;font-size:7px;color:var(--muted);transform:translateY(-50%)">' + mw + '</div>';
+  });
+  html += '</div>';
+
+  html += '<div style="width:95px;flex-shrink:0;position:relative;height:' + GH + 'px;margin-top:20px;">';
+  all.forEach(function(p) {
+    var bY = bandY(p), lY = LY[p.marker];
+    if (Math.abs(lY - bY) > 1.5) {
+      html += '<div style="position:absolute;right:8px;top:' + Math.min(bY, lY) + '%;height:' + Math.abs(lY - bY) + '%;width:1px;background:rgba(107,112,148,0.2)"></div>';
+    }
+    html += '<div style="position:absolute;right:6px;top:' + bY + '%;width:3px;height:3px;border-radius:50%;background:rgba(107,112,148,0.4);transform:translateY(-50%)"></div>';
+    html += '<div style="position:absolute;right:12px;top:' + lY + '%;font-size:7px;color:var(--muted2);white-space:nowrap;transform:translateY(-50%);text-align:right;line-height:1">' + p.marker + '</div>';
+  });
+  html += '</div>';
+
+  html += '<div style="flex:1;display:flex;gap:3px;">';
+  ['CTRL', drugLabel.substring(0, 12)].forEach(function(lbl, li) {
+    html += '<div style="flex:1;min-width:60px;display:flex;flex-direction:column;align-items:center;">';
+    html += '<div style="font-size:8px;color:var(--muted2);height:20px;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap">' + lbl + '</div>';
+    html += '<div style="width:100%;background:#010204;border:1px solid #0d0f1a;position:relative;height:' + GH + 'px;">';
+    MW_TICKS.forEach(function(mw) {
+      html += '<div style="position:absolute;top:' + mw2y(mw) + '%;left:0;right:0;height:1px;background:rgba(255,255,255,0.03)"></div>';
+    });
+    html += '<div style="position:absolute;top:85%;left:0;right:0;height:1px;border-top:1px dashed rgba(255,255,255,0.06)"></div>';
+    all.forEach(function(p) {
+      var isC = LOAD_CTRL.indexOf(p.marker) >= 0;
+      var color = 'rgba(255,255,255,0.75)', h = 5, glow = '';
+      if (li === 1) {
+        var op = IM[p.intensity] || 0.4;
+        if (isC) color = 'rgba(255,255,255,0.85)';
+        else if (p.direction === 'up') { color = 'rgba(0,229,160,' + op + ')'; glow = 'box-shadow:0 0 8px rgba(0,229,160,' + (op * 0.5) + ');'; }
+        else if (p.direction === 'down') color = 'rgba(239,83,80,' + (op * 0.9) + ')';
+        else if (p.direction === 'none') color = 'rgba(255,255,255,0.18)';
+        else color = 'rgba(255,112,67,0.35)';
+        h = p.intensity === 'high' ? 7 : p.intensity === 'faint' ? 3 : 5;
+      }
+      html += '<div style="position:absolute;top:' + bandY(p) + '%;left:8px;right:8px;height:' + h + 'px;border-radius:1px;background:' + color + ';' + glow + 'transform:translateY(-50%)"></div>';
+    });
+    html += '</div></div>';
+  });
+  html += '</div></div>';
+  html += '<div style="display:flex;gap:20px;font-size:8px;flex-wrap:wrap;margin-top:10px;">' +
+    '<span style="color:var(--green)">increased</span><span style="color:var(--red)">decreased</span>' +
+    '<span style="color:rgba(255,255,255,0.2)">unchanged</span><span style="color:var(--orange)">uncertain</span>' +
+    '</div></div>';
+  document.getElementById('gelOut').innerHTML = html;
+}
+
+// ── Table rendering ──
+function renderTable(preds) {
+  var html = '<table class="pred-table"><thead><tr>' +
+    '<th>Marker</th><th>Direction</th><th>Intensity</th><th>Confidence</th><th>Reported WB result</th><th>Signaling chain</th>' +
+    '</tr></thead><tbody>';
+
+  preds.forEach(function(p) {
+    // Loading controls are fixed by definition
+    var isHK = HOUSEKEEPING.indexOf(p.marker) >= 0;
+    if (isHK) {
+      p.direction = 'none';
+      p.intensity = 'medium';
+      p.confidence = 100;
+      p.evidenceLevel = 'loading control';
+      p.wb_data_found = null;
+    }
+
+    var dc = { up: 'up', down: 'down', none: 'none', unknown: 'unknown' }[p.direction] || 'none';
+    var dl = { up: 'increased', down: 'decreased', none: 'unchanged', unknown: 'unclear' }[p.direction] || 'unclear';
+    var c = p.confidence || 0;
+    var cc = c >= 70 ? 'var(--green)' : c >= 40 ? '#f0c040' : 'var(--orange)';
+
+    var uncertain = !isHK && (c < 50 || INFERRED_LEVELS.indexOf(p.evidenceLevel) >= 0);
+    var veryUncertain = !isHK && (c < 25 || p.evidenceLevel === 'no data');
+    var rowBg = veryUncertain ? 'background:rgba(255,112,67,0.04);' : uncertain ? 'background:rgba(179,157,219,0.03);' : isHK ? 'background:rgba(255,255,255,0.02);' : '';
+    var leftBar = 'border-left:2px solid ' + (veryUncertain ? 'rgba(255,112,67,0.5)' : uncertain ? 'rgba(179,157,219,0.4)' : isHK ? 'rgba(107,112,148,0.3)' : 'transparent') + ';';
+    var badge = isHK
+      ? '<span style="font-size:7px;padding:1px 5px;background:rgba(107,112,148,0.15);color:var(--muted2);margin-left:5px">loading control</span>'
+      : veryUncertain
+      ? '<span style="font-size:7px;padding:1px 5px;background:rgba(255,112,67,0.15);color:var(--orange);margin-left:5px">inferred</span>'
+      : uncertain
+      ? '<span style="font-size:7px;padding:1px 5px;background:rgba(179,157,219,0.15);color:var(--purple);margin-left:5px">inferred</span>'
+      : '';
+
+    function clip(t) { return t.substring(0, 120) + (t.length > 120 ? '...' : ''); }
+    var wb = isHK
+      ? '<span style="color:var(--muted);font-size:9px">Loading control: constant regardless of treatment</span>'
+      : p.wb_data_found
+      ? '<span style="font-style:italic;color:rgba(221,225,240,0.8);font-family:Fraunces,serif;font-size:11px">' + clip(p.wb_data_found) + '</span>'
+      : '<span style="color:var(--muted);font-size:9px">-</span>';
+    var ch = isHK
+      ? '<span style="color:var(--muted);font-size:9px">Structural or metabolic protein, expressed constantly across conditions.</span>'
+      : p.signaling_chain
+      ? '<span style="color:var(--muted2);font-size:9px">' + clip(p.signaling_chain) + '</span>'
+      : '<span style="color:var(--muted);font-size:9px">-</span>';
+
+    html += '<tr style="' + rowBg + leftBar + '">' +
+      '<td style="font-weight:600;white-space:nowrap">' + p.marker + badge + '</td>' +
+      '<td class="' + dc + '" style="white-space:nowrap">' + dl + '</td>' +
+      '<td style="color:var(--muted2);white-space:nowrap">' + (p.intensity || '-') + '</td>' +
+      '<td style="white-space:nowrap"><div class="conf-bar"><div class="conf-fill" style="width:' + c + '%;background:' + cc + '"></div></div>' +
+      '<span style="font-size:9px;margin-left:4px;color:var(--muted2)">' + c + '%</span>' +
+      (p.voteNote ? '<div style="font-size:8px;color:var(--muted);margin-top:2px;letter-spacing:0.03em">' + p.voteNote + '</div>' : '') +
+      '</td>' +
+      '<td style="max-width:220px">' + wb + '</td>' +
+      '<td style="max-width:220px">' + ch + '</td>' +
+      '</tr>';
+  });
+
+  html += '</tbody></table>' +
+    '<div style="display:flex;gap:16px;margin-top:12px;font-size:9px;color:var(--muted);flex-wrap:wrap;">' +
+    '<span>white: supported by published data</span>' +
+    '<span style="color:var(--purple)">purple <b>inferred</b>: mechanistic or indirect inference</span>' +
+    '<span style="color:var(--orange)">orange <b>inferred</b>: weak evidence</span>' +
+    '<span style="color:var(--muted)">the small line under confidence shows the multi-source voting adjustment</span>' +
+    '</div>';
+  document.getElementById('tableOut').innerHTML = html;
+}
+
+// ── Main run ──
+async function runAnalysis() {
+  function val(id) { return document.getElementById(id).value.trim(); }
+
+  var cellSel = val('cellLine');
+  var cellLine = cellSel === '__custom__' ? val('customCell') : cellSel;
+  var concentration = val('concentration');
+  var timepoint = val('timepoint');
+  var treatCondition = val('treatCondition');
+  var markers = getMarkers();
+  var smiles = val('smiles');
+  var molFormula = val('molFormula');
+  var molWeight = val('molWeight');
+  var structFeat = val('structFeatures');
+  var targetInfo = val('targetInfo');
+  var analogDrug = val('analogDrug');
+  var novelName = val('novelName');
+  var isNovel = currentMode === 'novel';
+
+  var drugLabel = '';
+  if (!isNovel) {
+    drugLabel = val('drugName');
+    if (!drugLabel) { alert('Enter a drug name.'); return; }
+  } else {
+    if (!smiles && !targetInfo) { alert('Enter a SMILES string or the target / mechanism.'); return; }
+    drugLabel = novelName || (smiles ? smiles.substring(0, 15) + '...' : 'Novel compound');
+  }
+  if (!cellLine) { alert('Select a cell line.'); return; }
+  if (!markers.length) { alert('Select at least one marker.'); return; }
+
+  document.getElementById('runBtn').disabled = true;
+  ['gelOut', 'reviewOut', 'tableOut', 'pathwayOut'].forEach(function(id) {
+    document.getElementById(id).innerHTML = '<div class="empty"><div class="spinner"></div></div>';
+  });
+
+  var drugShort = drugLabel.split('...')[0].split(' ')[0];
+  var cellShort = cellLine.split(' ')[0];
+
+  try {
+    // Phase 0: local database lookup, no network needed
+    setStatus('running', '[0/3] Querying local WB database...');
+    var dbResult = null, dbCorpus = '', dbExactCount = 0, dbDrugCount = 0;
+    if (WB_DB_STATUS === 'ready') {
+      var queryDrug = isNovel ? (analogDrug || drugLabel) : drugLabel;
+      dbResult = queryWBDB(queryDrug, cellLine, markers, concentration, timepoint);
+      if (dbResult) {
+        dbExactCount = dbResult.exact.length;
+        dbDrugCount = dbResult.drugOnly.length;
+        dbCorpus = dbResultsToCorpus(dbResult);
+      }
+    }
+
+    // Phase 1: public databases and literature search (hard 20 s cut-off)
+    var dbHitMsg = dbExactCount > 0 ? ' | DB: ' + dbExactCount + ' hits' : (dbDrugCount > 0 ? ' | DB similar: ' + dbDrugCount : '');
+    setStatus('running', '[1/3] PubChem, Cellosaurus, LINCS, cBioPortal, literature' + dbHitMsg + '...');
+
+    var phase1 = await Promise.race([
+      (async function() {
+        var s2Qs = isNovel
+          ? [targetInfo && (targetInfo.substring(0, 50) + ' western blot cancer'),
+             analogDrug && (analogDrug + ' ' + cellShort + ' western blot'),
+             analogDrug && (analogDrug + ' apoptosis signaling')].filter(Boolean).slice(0, 3)
+          : [drugShort + ' ' + cellShort + ' western blot',
+             drugShort + ' ' + cellShort + ' apoptosis signaling',
+             drugShort + ' western blot cancer protein'];
+
+        var results = await Promise.all([
+          isNovel ? Promise.resolve({ found: false }) : getPubChemData(drugShort),
+          getCellosaurusData(cellLine),
+          Promise.all(s2Qs.map(function(q) { return s2Search(q, 8); })).then(function(all) {
+            var seen = new Set();
+            return all.reduce(function(a, b) { return a.concat(b); }, []).filter(function(p) {
+              if (!p.abstract || seen.has(p.paperId)) return false;
+              seen.add(p.paperId);
+              return true;
+            }).sort(function(a, b) { return (b.citationCount || 0) - (a.citationCount || 0); }).slice(0, 20);
+          }),
+          pmcSearch(drugShort + ' ' + cellShort + ' western blot', 8),
+          isNovel ? Promise.resolve(null) : getLINCSL1000(drugShort, cellLine).then(function(r) {
+            return r && r.found ? r : getLINCSData(drugShort, cellLine);
+          }),
+          getCBioPortalData(isNovel ? targetInfo : (drugShort + ' target'))
+        ]);
+        return {
+          pubchem: results[0], cellosaurus: results[1], s2raw: results[2],
+          pmcIds: results[3], lincs: results[4] || null, cbioportal: results[5] || null
+        };
+      })(),
+      new Promise(function(res) {
+        setTimeout(function() {
+          res({ pubchem: { found: false }, cellosaurus: null, s2raw: [], pmcIds: [], lincs: null, cbioportal: null });
+        }, 20000);
+      })
+    ]);
+
+    var pubchem = phase1.pubchem, cellosaurus = phase1.cellosaurus;
+    var s2raw = phase1.s2raw, pmcIds = phase1.pmcIds;
+    var lincs = phase1.lincs, cbioportal = phase1.cbioportal;
+
+    // Phase 2: PMC full texts and per-marker protein data (hard 25 s cut-off)
+    setStatus('running', '[2/3] Collecting PMC full texts and marker annotations...');
+    var analysisMarkers = markers.filter(function(m) { return LOAD_CTRL.indexOf(m) < 0; });
+
+    var phase2 = await Promise.race([
+      Promise.all([
+        Promise.all(s2raw.map(function(p, i) {
+          var pmid = p.externalIds && p.externalIds.PubMed;
+          var pmcid = p.externalIds && p.externalIds.PubMedCentral;
+          var ft = p.abstract || '';
+          if (pmcid && i < 8) {
+            return getPMCText(pmcid).then(function(t) {
+              return Object.assign({}, p, { fullText: (t && t.length > ft.length) ? t : ft, pmid: pmid || null, pmcid: pmcid || null });
+            });
+          }
+          if (pmid && ft.length < 300) {
+            return getPMAbstract(pmid).then(function(abs) {
+              return Object.assign({}, p, { fullText: abs || ft, pmid: pmid || null, pmcid: pmcid || null });
+            });
+          }
+          return Promise.resolve(Object.assign({}, p, { fullText: ft, pmid: pmid || null, pmcid: pmcid || null }));
+        })),
+        Promise.all(analysisMarkers.map(function(marker) {
+          return Promise.all([getUniProtInfo(marker), getIndirectPapers(marker)]).then(function(r) {
+            return { marker: marker, uniInfo: r[0], indirect: r[1] };
+          });
+        })),
+        (function() {
+          var existing = new Set(s2raw.map(function(p) { return p.externalIds && p.externalIds.PubMedCentral; }).filter(Boolean));
+          return Promise.all(pmcIds.filter(function(id) { return !existing.has(id); }).slice(0, 3).map(function(id) {
+            return getPMCText(id).then(function(ft) {
+              if (!ft || ft.length < 100) return null;
+              return { paperId: 'pmc-' + id, title: 'PMC' + id, pmcid: id, pmid: null, fullText: ft, citationCount: 0, authors: [], year: null, journal: null };
+            });
+          })).then(function(arr) { return arr.filter(Boolean); });
+        })()
+      ]),
+      new Promise(function(res) { setTimeout(function() { res([[], [], []]); }, 25000); })
+    ]);
+
+    var papers = phase2[0].concat(phase2[2]).filter(function(p) { return p.fullText && p.fullText.length > 80; });
+    var markerInfos = phase2[1];
+    var pmcCount = papers.filter(function(p) { return p.pmcid; }).length;
+    var quirks = getQuirks(cellLine);
+
+    // Build the corpus
+    var corpus = '';
+
+    if (pubchem.found) {
+      corpus += '\n\n[PubChem - CID ' + pubchem.cid + ']\n';
+      if (pubchem.formula) corpus += 'Formula: ' + pubchem.formula + ', MW: ' + pubchem.mw + ' Da\n';
+      if (pubchem.smiles) corpus += 'SMILES: ' + pubchem.smiles + '\n';
+      if (pubchem.pharmacology) corpus += 'Pharmacology / mechanism: ' + pubchem.pharmacology.substring(0, 1000) + '\n';
+    } else if (isNovel && smiles) {
+      corpus += '\n\n[Novel compound structure]\nSMILES: ' + smiles + '\n';
+      if (targetInfo) corpus += 'Target / mechanism: ' + targetInfo + '\n';
+    }
+
+    if (cellosaurus) {
+      corpus += '\n\n[Cellosaurus - ' + cellosaurus.ac + ']\nCell line: ' + cellosaurus.name + '\n';
+      if (cellosaurus.disease) corpus += 'Disease: ' + cellosaurus.disease + '\n';
+      if (cellosaurus.variants.length) {
+        corpus += 'Sequence variations:\n';
+        cellosaurus.variants.slice(0, 8).forEach(function(v) { corpus += '  - ' + v + '\n'; });
+      }
+      if (cellosaurus.comments) corpus += 'Characteristics: ' + cellosaurus.comments.substring(0, 400) + '\n';
+    } else if (quirks) {
+      corpus += '\n\n[Built-in cell line notes]\nCharacteristics: ' + quirks.notes + '\n';
+      Object.keys(quirks.deficient).forEach(function(m) {
+        corpus += 'Deficiency: ' + m + ' - ' + quirks.deficient[m] + '\n';
+      });
+    }
+
+    if (dbCorpus) corpus += dbCorpus;
+
+    if (papers.length) {
+      corpus += '\n\n[' + papers.length + ' papers, ' + pmcCount + ' with PMC full text]\n';
+      papers.forEach(function(p, i) {
+        var auth = (p.authors && p.authors[0]) ? p.authors[0].name.split(' ').pop() : '';
+        var ref = auth + ' et al., ' + ((p.journal && p.journal.name) || '') + ' ' + (p.year || '') +
+          (p.pmid ? ' PMID:' + p.pmid : '') + (p.pmcid ? ' PMC:' + p.pmcid : '');
+        var ft = p.fullText || '';
+        var limit = /western\s*blot|immunoblot|WB\b/i.test(ft) ? 1500 : 500;
+        corpus += '\n[' + (i + 1) + '] ' + (p.pmcid ? '[full text]' : '[abstract]') + ' ' + ref.trim() + ' (citations: ' + (p.citationCount || 0) + ')\n';
+        corpus += 'Title: ' + (p.title || '') + '\n';
+        corpus += 'Content: ' + ft.substring(0, limit) + '\n';
+      });
+    }
+
+    if (markerInfos.length) {
+      corpus += '\n\n[Per-marker protein annotations, for markers with sparse data]\n';
+      markerInfos.forEach(function(mi) {
+        corpus += '\n[' + mi.marker + ']\n';
+        if (mi.uniInfo) {
+          if (mi.uniInfo.fn) corpus += '  UniProt function: ' + mi.uniInfo.fn + '\n';
+          if (mi.uniInfo.pw) corpus += '  Pathway: ' + mi.uniInfo.pw + '\n';
+          if (mi.uniInfo.kws) corpus += '  Keywords: ' + mi.uniInfo.kws + '\n';
+        }
+        if (mi.indirect) corpus += '  Indirect literature: ' + mi.indirect.substring(0, 600) + '\n';
+      });
+    }
+
+    if (lincs && lincs.found) {
+      corpus += '\n\n[LINCS L1000 expression signature - ' + lincs.source + ']\n';
+      corpus += 'Drug: ' + lincs.drugName + ' | cell line: ' + lincs.cellLine;
+      if (lincs.dose) corpus += ' | dose: ' + lincs.dose;
+      if (lincs.time) corpus += ' | time: ' + lincs.time;
+      corpus += '\n';
+      if (lincs.upGenes.length) corpus += 'Upregulated genes: ' + lincs.upGenes.slice(0, 15).join(', ') + '\n';
+      if (lincs.downGenes.length) corpus += 'Downregulated genes: ' + lincs.downGenes.slice(0, 15).join(', ') + '\n';
+      corpus += 'Note: LINCS data are mRNA level and may not match protein-level direction.\n';
+    }
+
+    if (cbioportal && cbioportal.found) {
+      corpus += '\n\n[cBioPortal - target gene ' + cbioportal.gene + ']\n';
+      if (cbioportal.geneSummary) corpus += 'Gene summary: ' + cbioportal.geneSummary + '\n';
+      if (cbioportal.mutations.length) corpus += 'Cancer cell line mutations: ' + cbioportal.mutations.join(' | ') + '\n';
+    }
+
+    // Phase 3: prediction
+    setStatus('running', '[3/3] Generating prediction...');
+
+    var sysPrompt = [
+      'You are an expert in tumour biology, medicinal chemistry and cell signalling.',
+      'When predicting western blot outcomes, always do both of the following.',
+      '',
+      '[0] WB database direct experimental data - highest priority',
+      'If the corpus contains a "[WB database - same cell line and drug, direct experimental data]" section:',
+      '1. Set the direction of that marker directly from the database value (above literature search).',
+      '2. evidenceLevel: "database direct", confidence: database quality * 0.9 (minimum 70).',
+      '3. wb_data_found: "[WB DB] PMC{pmcid} | {cell} | {drug} {conc}uM {time}h -> {marker}: {direction}".',
+      '4. With several rows for one marker, prefer higher quality; if directions agree, add +5 confidence.',
+      '5. "[WB database - same drug, other cell lines]" is supporting evidence only: +5 to +10 confidence.',
+      '6. Always apply the condition note ("conditions differ" lowers confidence by 10 to 15 even for database data).',
+      '',
+      '[1] Extract WB results from the literature',
+      'Find the sentence reporting the WB result and record it in wb_data_found. If absent, use null. Never invent one.',
+      '',
+      '[2] Causal signalling chain - required for every marker',
+      'cell line genetic background -> primary drug action -> pathway -> marker change. Write this in signaling_chain.',
+      '',
+      '[Housekeeping rule - no exceptions]',
+      'For loading controls such as beta-actin, GAPDH and tubulin:',
+      '- direction: "none", intensity: "medium", confidence: 100',
+      '- evidenceLevel: "loading control"',
+      '- wb_data_found: null, signaling_chain: "loading control"',
+      '- Never mark them as inferred and never change these values.',
+      '',
+      '[Using LINCS L1000 - supporting evidence only]',
+      'Use it only when LINCS data are present in the corpus, otherwise ignore it completely:',
+      '1. If the marker gene is in the up list and agrees with literature or mechanism, add +10 confidence.',
+      '2. Never decide a direction from LINCS alone; literature or mechanistic grounds are required.',
+      '3. LINCS is mRNA and may diverge from protein phosphorylation or degradation, so do not over-trust it.',
+      '',
+      '[Using cBioPortal]',
+      'When target gene mutation or expression data are provided:',
+      '1. Reflect the cell line mutations in cell_line_analysis.',
+      '2. Gain-of-function mutations imply a higher baseline expression.',
+      '3. Loss-of-function mutations imply a lower baseline expression.',
+      '',
+      '[Confidence calibration]',
+      'Confidence means the real probability that this marker changes in this direction.',
+      'Stronger evidence means higher confidence, but a clear mechanism can be high even without papers.',
+      'Example: an EGFR inhibitor decreasing p-EGFR is mechanistic yet can exceed 95.',
+      'Example: if the published concentration or time differs greatly from the input, lower it even with paper support.',
+      'Example: a marker unrelated to the drug pathway stays low even with some evidence.',
+      'Neither over- nor under-confident: accurate calibration is the goal.',
+      '',
+      '[Time-dependent markers - required]',
+      'Marker patterns change completely with treatment time, so always account for it.',
+      '',
+      'Early response (0-6 h): phosphorylation markers activate (gamma-H2AX, p-CHK1, p-p53), early signalling.',
+      'Mid response (6-24 h): transcription-driven protein changes begin (p21 up, Bcl-2 down), cleaved caspases start rising.',
+      'Late response (24-72 h): apoptosis completes (cleaved caspase-3, cleaved PARP peak), survival markers fall.',
+      'Very late (72 h+): total protein drops after cell death and surviving-cell selection can reverse marker patterns.',
+      '',
+      'When a treatment time is given:',
+      '1. State which phase each marker is in at that time point.',
+      '2. Note in wb_data_found when a marker is past its peak and may reverse direction.',
+      '3. Low concentrations delay the timeline (0.1x IC50 stretches it 2-3 fold).',
+      '4. State "at {N} h of treatment" in signaling_chain.',
+      '',
+      'Do not give up when no direct WB paper exists:',
+      '1. Use UniProt function and pathway data to connect the marker to the drug pathway.',
+      '2. Check indirect literature for comparable situations.',
+      '3. Build the logical chain and predict with confidence 20-40.',
+      '4. Use "no data" only when the protein is entirely unrelated to the drug pathway.',
+      '',
+      '[Priority order]',
+      '0. WB database, same cell line and drug -> evidenceLevel "database direct", confidence 70-95',
+      '1. Cellosaurus or built-in deficiency -> direction "none", confidence <= 5 (no exceptions)',
+      '2. Same cell line and drug WB paper -> evidenceLevel "direct literature"',
+      '3. Similar condition WB paper -> evidenceLevel "similar condition literature"',
+      '4. WB database, other cell line -> evidenceLevel "database similar cell line"',
+      '5. Indirect literature plus UniProt -> evidenceLevel "indirect literature inference", confidence 25-45',
+      '6. UniProt plus signalling logic -> evidenceLevel "mechanistic inference", confidence 15-40',
+      '7. No evidence -> evidenceLevel "no data", confidence <= 5',
+      'LINCS and cBioPortal are only used to adjust the result after this judgement.',
+      '',
+      '[JSON output rules]',
+      '- No newlines and no double quotes inside string values',
+      '- Write each string on one line',
+      '- No trailing commas',
+      '',
+      'Citation format: "Author et al., Journal Year PMID:number"',
+      '',
+      'Return only this JSON:',
+      '{"pubchem_cid":null,"cellosaurus_ac":null,"cell_line_quirks_applied":[],"literature_found":0,"pmc_fulltext_count":0,"lincs_found":false,"cbioportal_gene":null,"db_exact_hits":0,"drug_analysis":"","cell_line_analysis":"","predictions":[{"marker":"","direction":"up","intensity":"medium","confidence":50,"evidenceLevel":"mechanistic inference","citations":[],"wb_data_found":null,"signaling_chain":"","mechanism":""}],"pathway_summary":"","review":{"position":"","challenge":"","rebuttal":"","closing":"","consensus":""},"no_data_markers":[],"validation_suggestions":[]}'
+    ].join('\n');
+
+    var userPrompt = 'Cell line: ' + cellLine +
+      '\nDrug: ' + drugLabel +
+      '\nConcentration: ' + (concentration || 'not given') +
+      '\nTreatment time: ' + (timepoint || 'not given') +
+      '\nCondition: ' + (treatCondition || 'standard') +
+      '\nMarkers: ' + markers.join(', ') +
+      '\nMode: ' + (isNovel ? 'novel compound' : 'known drug');
+    if (isNovel) {
+      if (smiles) userPrompt += '\nSMILES: ' + smiles;
+      if (molFormula) userPrompt += '\nFormula: ' + molFormula;
+      if (molWeight) userPrompt += '\nMW: ' + molWeight;
+      if (structFeat) userPrompt += '\nStructural features: ' + structFeat;
+      if (targetInfo) userPrompt += '\nTarget / mechanism: ' + targetInfo;
+      if (analogDrug) userPrompt += '\nAnalogue: ' + analogDrug;
+    }
+    userPrompt += corpus;
+    userPrompt += '\n\n[Instructions]\n' +
+      '1. Find the WB result in the literature and record it in wb_data_found\n' +
+      '2. Apply cell line deficiencies strictly\n' +
+      '3. Write signaling_chain for every marker\n' +
+      '4. For markers with sparse data, infer from UniProt plus indirect literature\n' +
+      '5. Always compare published concentration, time and condition with the input: the larger the gap, the lower the confidence\n' +
+      '6. State the gap between published and input conditions briefly in wb_data_found';
+
+    var msgContent = (isNovel && structImageB64)
+      ? [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: structImageB64 } }, { type: 'text', text: userPrompt }]
+      : userPrompt;
+
+    var resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ system: sysPrompt, messages: [{ role: 'user', content: msgContent }] })
+    });
+
+    var data = await resp.json();
+    if (data.error) throw new Error('API error: ' + (data.error.message || data.error));
+    var rawText = (data.content || []).map(function(i) { return i.text || ''; }).filter(Boolean).join('\n');
+    if (!rawText) throw new Error('Empty API response (stop reason: ' + (data.stop_reason || 'unknown') + ')');
+
+    var parsed;
+    try {
+      var m = rawText.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('no JSON found');
+      var jsonStr = m[0].replace(/```json|```/g, '');
+      // Replace control characters that appear inside string values
+      var chars = [], inStr = false, prev = '';
+      for (var ci = 0; ci < jsonStr.length; ci++) {
+        var ch = jsonStr[ci];
+        if (ch === '"' && prev !== '\\') inStr = !inStr;
+        if (inStr && (ch === '\n' || ch === '\r' || ch === '\t')) ch = ' ';
+        chars.push(ch);
+        prev = ch;
+      }
+      parsed = JSON.parse(chars.join('').replace(/,(\s*[}\]])/g, '$1'));
+    } catch (e) {
+      throw new Error('Parse failed: ' + e.message);
+    }
+
+    var preds = applyVoting(parsed.predictions || [], dbResult, lincs);
+    var review = parsed.review || {};
+    var noData = parsed.no_data_markers || [];
+    var validations = parsed.validation_suggestions || [];
+    var litCount = parsed.literature_found || papers.length;
+    var calibration = buildCalibration(preds, dbResult);
+
+    renderTable(preds);
+    renderGel(preds, cellLine, drugLabel);
+
+    // Evidence review tab
+    var dHtml = '';
+    var badges = [
+      ['WB DB (same)', dbExactCount || '-', dbExactCount ? 'var(--green)' : 'var(--muted)', dbExactCount ? '0,229,160' : '100,100,100'],
+      ['WB DB (similar)', dbDrugCount || '-', dbDrugCount ? 'var(--blue)' : 'var(--muted)', dbDrugCount ? '79,195,247' : '100,100,100'],
+      ['Papers', litCount, 'var(--green)', '0,229,160'],
+      ['PMC full text', pmcCount, 'var(--blue)', '79,195,247'],
+      ['PubChem', pubchem.found ? 'yes' : '-', pubchem.found ? 'var(--green)' : 'var(--muted)', '100,100,100'],
+      ['Cellosaurus', cellosaurus ? 'yes' : '-', cellosaurus ? 'var(--orange)' : 'var(--muted)', '100,100,100'],
+      ['LINCS', lincs && lincs.found ? 'yes' : '-', lincs && lincs.found ? 'var(--blue)' : 'var(--muted)', lincs && lincs.found ? '79,195,247' : '100,100,100'],
+      ['cBioPortal', cbioportal && cbioportal.found ? cbioportal.gene : '-', cbioportal && cbioportal.found ? 'var(--purple)' : 'var(--muted)', cbioportal && cbioportal.found ? '179,157,219' : '100,100,100']
+    ];
+    dHtml += '<div style="display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-bottom:16px;">';
+    badges.forEach(function(b) {
+      dHtml += '<div style="padding:8px 6px;background:rgba(' + b[3] + ',0.05);border:1px solid rgba(' + b[3] + ',0.15);text-align:center">' +
+        '<div style="font-size:16px;color:' + b[2] + ';font-weight:600">' + b[1] + '</div>' +
+        '<div style="font-size:8px;color:var(--muted);letter-spacing:0.1em">' + b[0] + '</div></div>';
+    });
+    dHtml += '</div>';
+
+    function dirMark(d) { return d === 'up' ? 'up' : d === 'down' ? 'down' : d === 'none' ? 'none' : '?'; }
+    function dirColor(d) { return d === 'up' ? 'var(--green)' : d === 'down' ? 'var(--red)' : 'var(--muted)'; }
+
+    if (dbExactCount > 0) {
+      dHtml += '<div style="background:rgba(0,229,160,0.05);border:1px solid rgba(0,229,160,0.25);padding:10px 14px;margin-bottom:12px;">' +
+        '<span style="font-size:8px;letter-spacing:0.2em;color:var(--green);display:block;margin-bottom:6px;font-family:IBM Plex Mono,monospace">WB DATABASE - SAME CELL LINE AND DRUG (' + dbExactCount + ')</span>' +
+        '<div style="font-size:10px;line-height:2;max-height:200px;overflow-y:auto;">';
+      dbResult.exact.slice().sort(function(a, b) { return (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0); })
+        .slice(0, 40).forEach(function(r) {
+          var cond = dbResult.condMap[normStr(r.marker)];
+          var condTag = cond
+            ? ' <span style="font-size:8px;padding:1px 5px;background:rgba(' + (cond.score >= 0.65 ? '0,229,160' : '255,112,67') + ',0.15);color:' + (cond.score >= 0.65 ? 'var(--green)' : 'var(--orange)') + '">' + cond.label + '</span>'
+            : '';
+          dHtml += '<span style="color:var(--muted2)">' + r.marker + '</span> ' +
+            '<strong style="color:' + dirColor(r.direction) + '">' + dirMark(r.direction) + '</strong>' +
+            (r.intensity && r.intensity !== 'nan' ? ' <span style="color:var(--muted);font-size:9px">(' + r.intensity + ')</span>' : '') +
+            condTag + ' <span style="color:var(--muted);font-size:9px">| ' + r.cell +
+            (r.conc_uM ? ' ' + r.conc_uM + 'uM' : '') + (r.time_h ? ' ' + r.time_h + 'h' : '') + ' PMC' + r.pmcid + '</span><br>';
+        });
+      dHtml += '</div></div>';
+    }
+
+    if (calibration) {
+      var accColor = calibration.accuracy >= 70 ? 'var(--green)' : calibration.accuracy >= 50 ? 'var(--orange)' : 'var(--red)';
+      dHtml += '<div style="background:rgba(179,157,219,0.06);border:1px solid rgba(179,157,219,0.25);padding:10px 14px;margin-bottom:12px;">' +
+        '<span style="font-size:8px;letter-spacing:0.2em;color:var(--purple);display:block;margin-bottom:8px;font-family:IBM Plex Mono,monospace">CALIBRATION - PREDICTION VS DATABASE</span>' +
+        '<div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;">' +
+        '<span style="font-size:22px;font-weight:600;color:' + accColor + '">' + calibration.accuracy + '%</span>' +
+        '<span style="font-size:10px;color:var(--muted2)">' + calibration.matchCount + '/' + calibration.total + ' markers agree</span></div>' +
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;">';
+      [['high', 'high confidence (>=70)'], ['mid', 'medium (40-69)'], ['low', 'low (<40)']].forEach(function(pair) {
+        var b = calibration.bins[pair[0]];
+        var acc = b.total > 0 ? Math.round(b.correct / b.total * 100) : null;
+        dHtml += '<div style="padding:6px 8px;background:rgba(255,255,255,0.02);border:1px solid var(--border)">' +
+          '<div style="font-size:8px;color:var(--muted);margin-bottom:2px">' + pair[1] + '</div>' +
+          '<div style="font-size:13px;font-weight:600;color:' + (acc === null ? 'var(--muted)' : acc >= 70 ? 'var(--green)' : acc >= 50 ? 'var(--orange)' : 'var(--red)') + '">' +
+          (acc !== null ? acc + '%' : '-') + '</div>' +
+          '<div style="font-size:9px;color:var(--muted)">' + b.correct + '/' + b.total + '</div></div>';
+      });
+      dHtml += '</div><div style="font-size:10px;line-height:1.8;">';
+      calibration.results.forEach(function(r) {
+        dHtml += '<span style="color:' + (r.match ? 'var(--green)' : 'var(--red)') + '">' + (r.match ? 'match' : 'differs') + '</span> ' +
+          '<span style="color:var(--muted2)">' + r.marker + '</span> ' +
+          'prediction: ' + dirMark(r.predDir) + ', database: ' + dirMark(r.dbDir) +
+          ' <span style="color:var(--muted);font-size:9px">(confidence ' + r.conf + ')</span><br>';
+      });
+      dHtml += '</div></div>';
+    }
+
+    if (dbDrugCount > 0) {
+      dHtml += '<div style="background:rgba(79,195,247,0.04);border:1px solid rgba(79,195,247,0.2);padding:10px 14px;margin-bottom:12px;">' +
+        '<span style="font-size:8px;letter-spacing:0.2em;color:var(--blue);display:block;margin-bottom:6px;font-family:IBM Plex Mono,monospace">WB DATABASE - SAME DRUG, OTHER CELL LINES (' + dbDrugCount + ')</span>' +
+        '<div style="font-size:10px;line-height:2;max-height:150px;overflow-y:auto;">';
+      dbResult.drugOnly.slice().sort(function(a, b) { return (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0); })
+        .slice(0, 20).forEach(function(r) {
+          dHtml += '<span style="color:var(--muted2)">' + r.marker + '</span> ' +
+            '<strong style="color:' + dirColor(r.direction) + '">' + dirMark(r.direction) + '</strong>' +
+            ' <span style="color:var(--muted);font-size:9px">| ' + r.cell + ' PMC' + r.pmcid + '</span><br>';
+        });
+      dHtml += '</div></div>';
+    }
+
+    if (lincs && lincs.found) {
+      dHtml += '<div style="background:rgba(79,195,247,0.05);border:1px solid rgba(79,195,247,0.2);padding:10px 14px;margin-bottom:12px;font-size:10px;line-height:1.8">' +
+        '<span style="font-size:8px;letter-spacing:0.2em;color:var(--blue);display:block;margin-bottom:4px">LINCS L1000 - ' + lincs.source + ' | ' + lincs.drugName + ' @ ' + lincs.cellLine +
+        (lincs.dose ? ' | ' + lincs.dose : '') + (lincs.time ? ' | ' + lincs.time : '') + '</span>' +
+        (lincs.upGenes.length ? '<span style="color:var(--green)">up:</span> ' + lincs.upGenes.slice(0, 12).join(', ') + '<br>' : '') +
+        (lincs.downGenes.length ? '<span style="color:var(--red)">down:</span> ' + lincs.downGenes.slice(0, 12).join(', ') + '<br>' : '') +
+        '<span style="font-size:8px;color:var(--muted)">mRNA signature, may differ from protein level</span></div>';
+    }
+
+    if (cbioportal && cbioportal.found) {
+      dHtml += '<div style="background:rgba(179,157,219,0.05);border:1px solid rgba(179,157,219,0.2);padding:10px 14px;margin-bottom:12px;font-size:10px;line-height:1.8">' +
+        '<span style="font-size:8px;letter-spacing:0.2em;color:var(--purple);display:block;margin-bottom:4px">cBIOPORTAL - TARGET GENE ' + cbioportal.gene + '</span>' +
+        (cbioportal.geneSummary ? cbioportal.geneSummary.substring(0, 200) + '<br>' : '') +
+        (cbioportal.mutations.length ? '<strong>Cell line mutations:</strong> ' + cbioportal.mutations.slice(0, 5).join(' | ') : '') + '</div>';
+    }
+
+    if (pubchem.found) {
+      dHtml += '<div style="background:rgba(0,229,160,0.04);border:1px solid rgba(0,229,160,0.15);padding:10px 14px;margin-bottom:12px;font-size:10px;line-height:1.8">' +
+        '<span style="font-size:8px;letter-spacing:0.2em;color:var(--green);display:block;margin-bottom:4px">PUBCHEM - CID ' + pubchem.cid + '</span>' +
+        (pubchem.formula ? 'Formula: <strong>' + pubchem.formula + '</strong> | MW: ' + pubchem.mw + ' Da<br>' : '') +
+        '<a href="' + pubchem.url + '" target="_blank" rel="noopener" style="color:var(--blue);font-size:9px;text-decoration:none">Open in PubChem</a></div>';
+    }
+
+    if (cellosaurus) {
+      dHtml += '<div style="background:rgba(255,112,67,0.05);border:1px solid rgba(255,112,67,0.2);padding:10px 14px;margin-bottom:12px;font-size:10px;line-height:1.8">' +
+        '<span style="font-size:8px;letter-spacing:0.2em;color:var(--orange);display:block;margin-bottom:4px">CELLOSAURUS - ' + cellosaurus.ac + '</span>' +
+        (cellosaurus.disease ? 'Disease: ' + cellosaurus.disease + '<br>' : '') +
+        (cellosaurus.variants.length ? '<strong>Variants:</strong> ' + cellosaurus.variants.slice(0, 3).join(' | ') + '<br>' : '') +
+        '<a href="' + cellosaurus.url + '" target="_blank" rel="noopener" style="color:var(--blue);font-size:9px;text-decoration:none">Open in Cellosaurus</a></div>';
+    }
+
+    if (noData.length) dHtml += '<div class="no-data">Insufficient data: <strong>' + noData.join(', ') + '</strong></div>';
+
+    if (parsed.drug_analysis) {
+      dHtml += '<div style="background:rgba(79,195,247,0.05);border-left:2px solid var(--blue);padding:10px 14px;margin-bottom:16px;font-family:Fraunces,serif;font-size:13px;line-height:1.7;color:rgba(221,225,240,0.85)">' +
+        '<span style="font-size:8px;letter-spacing:0.2em;color:var(--blue);display:block;margin-bottom:4px;font-family:IBM Plex Mono,monospace">DRUG ANALYSIS</span>' +
+        parsed.drug_analysis + '</div>';
+    }
+
+    if (review.position) {
+      [['Position', 'a', 'var(--green)', review.position],
+       ['Challenge', 'b', 'var(--orange)', review.challenge],
+       ['Rebuttal', 'a', 'var(--green)', review.rebuttal],
+       ['Closing', 'b', 'var(--orange)', review.closing],
+       ['Consensus', 'j', 'var(--purple)', review.consensus]].forEach(function(r) {
+        if (!r[3]) return;
+        dHtml += '<div class="round"><div class="round-tag"><span style="color:' + r[2] + '">' + r[0] + '</span></div>' +
+          '<div class="bubble ' + r[1] + '">' + r[3] + '</div></div>';
+      });
+    }
+    document.getElementById('reviewOut').innerHTML = dHtml;
+
+    // Signaling tab
+    var pHtml = '';
+    if (parsed.cell_line_analysis) {
+      pHtml += '<div style="background:rgba(79,195,247,0.05);border-left:2px solid var(--blue);padding:12px 16px;margin-bottom:18px;">' +
+        '<div style="font-size:8px;letter-spacing:0.2em;color:var(--blue);margin-bottom:6px;font-family:IBM Plex Mono,monospace">CELL LINE BACKGROUND</div>' +
+        '<div style="font-family:Fraunces,serif;font-size:13.5px;line-height:1.8;color:rgba(221,225,240,0.9)">' + parsed.cell_line_analysis + '</div></div>';
+    }
+    if (parsed.pathway_summary) pHtml += '<div class="pathway-summary">' + parsed.pathway_summary + '</div>';
+
+    preds.filter(function(p) { return p.signaling_chain || p.mechanism; }).forEach(function(p) {
+      var dirS = { up: 'up', down: 'down', none: 'unchanged', unknown: 'unclear' }[p.direction] || 'unclear';
+      var dirC = { up: 'var(--green)', down: 'var(--red)', none: 'var(--muted)', unknown: 'var(--orange)' }[p.direction] || 'var(--muted)';
+      var uncertain = (p.confidence || 0) < 50 || INFERRED_LEVELS.indexOf(p.evidenceLevel) >= 0;
+      pHtml += '<div class="mech-item">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
+        '<div class="mech-marker">' + p.marker +
+        (uncertain ? '<span style="font-size:7px;padding:1px 6px;background:rgba(179,157,219,0.15);color:var(--purple);margin-left:6px">inferred</span>' : '') +
+        '</div>' +
+        '<div style="font-size:12px;color:' + dirC + ';font-weight:600">' + dirS + '</div>' +
+        '<div style="font-size:9px;color:var(--muted);margin-left:auto">confidence ' + (p.confidence || 0) + '%</div></div>';
+      if (p.wb_data_found) {
+        pHtml += '<div style="background:rgba(0,229,160,0.05);border-left:2px solid var(--green);padding:6px 10px;margin-bottom:8px;font-family:Fraunces,serif;font-size:12px;color:rgba(221,225,240,0.8);line-height:1.6">' +
+          '<span style="font-size:7px;letter-spacing:0.15em;color:var(--green);display:block;margin-bottom:3px;font-family:IBM Plex Mono,monospace">REPORTED WB RESULT</span>' + p.wb_data_found + '</div>';
+      }
+      if (p.signaling_chain) {
+        pHtml += '<div style="font-size:11px;color:var(--muted2);line-height:1.7;margin-bottom:6px;padding:6px 10px;background:rgba(255,255,255,0.02);border-left:1px solid var(--border2)">' +
+          '<span style="font-size:7px;letter-spacing:0.15em;color:var(--purple);display:block;margin-bottom:3px;font-family:IBM Plex Mono,monospace">SIGNALING CHAIN</span>' + p.signaling_chain + '</div>';
+      }
+      if (p.mechanism) pHtml += '<div class="mech-text">' + p.mechanism + '</div>';
+      pHtml += '</div>';
+    });
+
+    if (validations.length) {
+      pHtml += '<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">' +
+        '<div style="font-size:9px;letter-spacing:0.2em;color:var(--purple);margin-bottom:10px">SUGGESTED VALIDATION EXPERIMENTS</div>';
+      validations.forEach(function(v, i) {
+        pHtml += '<div style="font-size:11px;color:var(--muted2);padding:5px 0;border-bottom:1px solid var(--border)">' + (i + 1) + '. ' + v + '</div>';
+      });
+      pHtml += '</div>';
+    }
+    document.getElementById('pathwayOut').innerHTML = pHtml || '<div class="empty"><span>No mechanism analysis</span></div>';
+
+    setStatus('done', 'Done - ' + litCount + ' papers (' + pmcCount + ' full text), ' + preds.length + ' markers');
+    showTab('table');
+
+  } catch (e) {
+    setStatus('error', 'Error: ' + e.message);
+    ['gelOut', 'reviewOut', 'tableOut', 'pathwayOut'].forEach(function(id) {
+      document.getElementById(id).innerHTML = '<div class="empty" style="color:var(--orange)"><span>' + e.message + '</span></div>';
+    });
+  } finally {
+    document.getElementById('runBtn').disabled = false;
+  }
+}
+</script>
+</body>
+</html>
